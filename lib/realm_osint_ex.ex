@@ -67,7 +67,11 @@ defmodule RealmOsintEx do
 
   ## Parameters
 
-    - domain: A string representing the domain (e.g., `"example.com"`).
+    - `domain` - domain string, for example `"example.com"`.
+    - `format` - `:xml` (default) or `:json`.
+    - `req_opts` - optional keyword list merged into the `Req` request.
+      `get_realm/1` and `get_realm/2` are unchanged. Pass `:base_url` here
+      to point the same request at another endpoint.
 
   ## Returns
 
@@ -88,21 +92,22 @@ defmodule RealmOsintEx do
   """
   require Logger
 
-  def get_realm(domain, format \\ :xml) when is_binary(domain) do
-    Req.new(
-      method: :get,
-      base_url: "https://login.microsoftonline.com/getuserrealm.srf",
-      params:
-        %{
-          login: "username@#{domain}"
-        }
-        |> Map.merge(
-          case format do
-            :json -> %{json: 1}
-            :xml -> %{xml: 1}
-          end
-        )
-    )
+  @default_base_url "https://login.microsoftonline.com/getuserrealm.srf"
+
+  def get_realm(domain, format \\ :xml, req_opts \\ [])
+      when is_binary(domain) and is_list(req_opts) do
+    params =
+      %{"login" => "username@#{domain}"}
+      |> Map.merge(
+        case format do
+          :json -> %{json: 1}
+          :xml -> %{xml: 1}
+        end
+      )
+
+    [method: :get, base_url: @default_base_url, params: params]
+    |> Keyword.merge(req_opts)
+    |> Req.new()
     |> Req.request()
     |> case do
       {:ok,
